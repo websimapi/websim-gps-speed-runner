@@ -95,6 +95,30 @@ body, html {
     border: 1px solid rgba(255,255,255,0.1);
 }
 
+/* Floating Actions */
+.floating-action {
+    position: absolute;
+    bottom: 160px; /* Above controls */
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--glass);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    z-index: 999;
+}
+
+.floating-action.hidden {
+    display: none;
+}
+
 /* Controls Panels */
 .controls-panel {
     position: absolute;

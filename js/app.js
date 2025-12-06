@@ -25,6 +25,11 @@ class App {
         // Try to get a quick fix to center map (optional)
         this.preLocate();
         this.initUI();
+
+        // Listen for map drag to show recenter button
+        window.addEventListener('map-interaction', () => {
+            document.getElementById('btn-recenter').classList.remove('hidden');
+        });
     }
 
     preLocate() {
@@ -41,6 +46,12 @@ class App {
     }
 
     initUI() {
+        // Recenter
+        document.getElementById('btn-recenter').addEventListener('click', () => {
+            this.mapManager.recenter();
+            document.getElementById('btn-recenter').classList.add('hidden');
+        });
+
         // Menu
         document.getElementById('btn-mode-gps').addEventListener('click', () => this.setMode('RECORDING'));
         document.getElementById('btn-mode-draw').addEventListener('click', () => this.setMode('DRAWING'));

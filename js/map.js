@@ -8,6 +8,14 @@ export class MapManager {
             attributionControl: false
         }).setView([0, 0], 16);
 
+        this.shouldFollow = true;
+        
+        // Disable follow mode on user interaction
+        this.map.on('dragstart zoomstart', () => {
+            this.shouldFollow = false;
+            window.dispatchEvent(new CustomEvent('map-interaction'));
+        });
+
         // OpenStreetMap Tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -42,9 +50,17 @@ export class MapManager {
         const newLatLng = [lat, lng];
         this.playerMarker.setLatLng(newLatLng);
         
-        // Only pan if we are not drawing (dragging enabled implies not drawing mode)
-        if (this.map.dragging.enabled()) {
+        // Only pan if follow mode is active
+        if (this.shouldFollow && this.map.dragging.enabled()) {
              this.map.panTo(newLatLng); 
+        }
+    }
+
+    recenter() {
+        const latlng = this.playerMarker.getLatLng();
+        if (latlng.lat !== 0 || latlng.lng !== 0) {
+            this.shouldFollow = true;
+            this.map.panTo(latlng);
         }
     }
 
@@ -69,28 +85,48 @@ export class MapManager {
         const container = this.map.getContainer();
         container.style.cursor = 'crosshair';
 
-        this._onDrawDrag = (e) => {
-            // Get position
-            let latlng = e.latlng;
-            // Fallback for raw touch events if needed, though Leaflet usually provides latlng on map events
-            if (!latlng) {
-                latlng = this.map.mouseEventToLatLng(e.originalEvent);
+        // State for drawing
+        this.isDrawing = false;
+
+        this._drawStart = (e) => {
+            this.isDrawing = true;
+            // Prevent map interaction/selection/scrolling
+            if (e.originalEvent) {
+                // e.originalEvent.preventDefault(); // Don't prevent start, otherwise clicks fail?
+                // Actually for touch, preventDefault on start stops mouse emulation but allows touchmove tracking often
             }
             
-            if (latlng) {
-                this.pathLayer.addLatLng(latlng);
+            if (e.latlng) {
+                this.pathLayer.addLatLng(e.latlng);
                 if (onDrawCallback) onDrawCallback();
             }
         };
 
-        // Listen to map events
-        this.map.on('mousedown touchstart', () => {
-             this.map.on('mousemove touchmove', this._onDrawDrag);
-        });
+        this._drawMove = (e) => {
+            if (!this.isDrawing) return;
+            
+            // Critical for mobile to prevent scroll interfering with drawing
+            if (e.originalEvent) {
+                e.originalEvent.preventDefault();
+                e.originalEvent.stopPropagation();
+            }
 
-        this.map.on('mouseup touchend', () => {
-            this.map.off('mousemove touchmove', this._onDrawDrag);
-        });
+            if (e.latlng) {
+                this.pathLayer.addLatLng(e.latlng);
+                if (onDrawCallback) onDrawCallback();
+            }
+        };
+
+        this._drawEnd = (e) => {
+            this.isDrawing = false;
+        };
+
+        this.map.on('mousedown touchstart', this._drawStart);
+        this.map.on('mousemove touchmove', this._drawMove);
+        this.map.on('mouseup touchend', this._drawEnd);
+        
+        // Safety for leaving map area
+        this.map.getContainer().addEventListener('mouseleave', this._drawEnd);
     }
 
     disableDrawing() {
@@ -103,9 +139,13 @@ export class MapManager {
         if (this.map.tap) this.map.tap.enable();
 
         this.map.getContainer().style.cursor = '';
-        this.map.off('mousedown touchstart');
-        this.map.off('mousemove touchmove', this._onDrawDrag);
-        this.map.off('mouseup touchend');
+        
+        if (this._drawStart) {
+            this.map.off('mousedown touchstart', this._drawStart);
+            this.map.off('mousemove touchmove', this._drawMove);
+            this.map.off('mouseup touchend', this._drawEnd);
+            this.map.getContainer().removeEventListener('mouseleave', this._drawEnd);
+        }
     }
 
     addRivalMarker(rivalData) {
