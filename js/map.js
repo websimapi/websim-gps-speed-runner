@@ -87,62 +87,80 @@ export class MapManager {
         container.style.cursor = 'crosshair';
 
         this.isDrawing = false;
+        this._activePointerId = null;
 
-        // Helper: Ensure we get a LatLng even from raw touch events
-        const getPoint = (e) => {
-            if (e.latlng) return e.latlng;
-            // Fallback for touches if Leaflet doesn't provide latlng directly
-            if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches[0]) {
-                const touch = e.originalEvent.touches[0];
-                const rect = container.getBoundingClientRect();
-                return this.map.containerPointToLatLng([
-                    touch.clientX - rect.left, 
-                    touch.clientY - rect.top
-                ]);
-            }
-            return null;
+        const getLatLngFromClient = (clientX, clientY) => {
+            const rect = container.getBoundingClientRect();
+            const point = this.map.containerPointToLatLng([
+                clientX - rect.left,
+                clientY - rect.top
+            ]);
+            return point;
         };
 
-        this._drawStart = (e) => {
+        this._onPointerDown = (e) => {
+            // Only primary pointer (finger or main mouse button)
+            if (e.button !== undefined && e.button !== 0) return;
             this.isDrawing = true;
-            
-            // Critical for mobile: prevent default on touchstart to stop browser from starting a scroll/zoom gesture
-            if (e.originalEvent && e.originalEvent.type === 'touchstart') {
-                e.originalEvent.preventDefault();
+            this._activePointerId = e.pointerId !== undefined ? e.pointerId : null;
+
+            // Prevent map from also handling this as a gesture
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (container.setPointerCapture && e.pointerId !== undefined) {
+                container.setPointerCapture(e.pointerId);
             }
-            
-            const latlng = getPoint(e);
+
+            const latlng = getLatLngFromClient(e.clientX, e.clientY);
             if (latlng) {
                 this.pathLayer.addLatLng(latlng);
                 if (onDrawCallback) onDrawCallback();
             }
         };
 
-        this._drawMove = (e) => {
+        this._onPointerMove = (e) => {
             if (!this.isDrawing) return;
-            
-            // Prevent browser scrolling while dragging
-            if (e.originalEvent) {
-                e.originalEvent.preventDefault();
-                e.originalEvent.stopPropagation();
-            }
+            if (this._activePointerId !== null && e.pointerId !== this._activePointerId) return;
 
-            const latlng = getPoint(e);
+            e.preventDefault();
+            e.stopPropagation();
+
+            const latlng = getLatLngFromClient(e.clientX, e.clientY);
             if (latlng) {
                 this.pathLayer.addLatLng(latlng);
                 if (onDrawCallback) onDrawCallback();
             }
         };
 
-        this._drawEnd = (e) => {
+        this._onPointerUp = (e) => {
+            if (this._activePointerId !== null && e.pointerId !== this._activePointerId) return;
             this.isDrawing = false;
+            this._activePointerId = null;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (container.releasePointerCapture && e.pointerId !== undefined) {
+                try {
+                    container.releasePointerCapture(e.pointerId);
+                } catch (_) {
+                    // ignore if not captured
+                }
+            }
         };
 
-        this.map.on('mousedown touchstart', this._drawStart);
-        this.map.on('mousemove touchmove', this._drawMove);
-        this.map.on('mouseup touchend', this._drawEnd);
-        
-        this.map.getContainer().addEventListener('mouseleave', this._drawEnd);
+        this._onPointerLeave = (e) => {
+            if (!this.isDrawing) return;
+            this.isDrawing = false;
+            this._activePointerId = null;
+        };
+
+        container.addEventListener('pointerdown', this._onPointerDown);
+        container.addEventListener('pointermove', this._onPointerMove);
+        container.addEventListener('pointerup', this._onPointerUp);
+        container.addEventListener('pointercancel', this._onPointerUp);
+        container.addEventListener('pointerleave', this._onPointerLeave);
     }
 
     disableDrawing() {
@@ -154,13 +172,20 @@ export class MapManager {
         this.map.keyboard.enable();
         if (this.map.tap) this.map.tap.enable();
 
-        this.map.getContainer().style.cursor = '';
+        const container = this.map.getContainer();
+        container.style.cursor = '';
         
-        if (this._drawStart) {
-            this.map.off('mousedown touchstart', this._drawStart);
-            this.map.off('mousemove touchmove', this._drawMove);
-            this.map.off('mouseup touchend', this._drawEnd);
-            this.map.getContainer().removeEventListener('mouseleave', this._drawEnd);
+        if (this._onPointerDown) {
+            container.removeEventListener('pointerdown', this._onPointerDown);
+            container.removeEventListener('pointermove', this._onPointerMove);
+            container.removeEventListener('pointerup', this._onPointerUp);
+            container.removeEventListener('pointercancel', this._onPointerUp);
+            container.removeEventListener('pointerleave', this._onPointerLeave);
+            this._onPointerDown = null;
+            this._onPointerMove = null;
+            this._onPointerUp = null;
+            this._onPointerLeave = null;
+            this._activePointerId = null;
         }
     }
 
