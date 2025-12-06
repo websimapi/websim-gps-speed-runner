@@ -22,7 +22,22 @@ class App {
         this.simSpeed = 0;
         this.keys = {}
 
+        // Try to get a quick fix to center map (optional)
+        this.preLocate();
         this.initUI();
+    }
+
+    preLocate() {
+        if (!navigator.geolocation) return;
+        // One-off low accuracy check just to center the map for UX
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                this.mapManager.updatePlayerPosition(pos.coords.latitude, pos.coords.longitude);
+                document.getElementById('status-bar').innerText = "Location Found. Ready.";
+            }, 
+            (err) => console.log("Pre-location skipped", err),
+            { enableHighAccuracy: false, timeout: 5000 }
+        );
     }
 
     initUI() {
@@ -47,7 +62,7 @@ class App {
 
         const options = {
             enableHighAccuracy: true,
-            timeout: 5000,
+            timeout: 20000,
             maximumAge: 0
         };
 
@@ -73,7 +88,12 @@ class App {
 
     handleError(err) {
         console.warn('GPS Error:', err.code, err.message);
-        document.getElementById('status-bar').innerText = "GPS Signal Lost...";
+        let msg = "GPS Signal Lost...";
+        if (err.code === 1) msg = "Location Permission Denied";
+        if (err.code === 2) msg = "Location Unavailable";
+        if (err.code === 3) msg = "GPS Timeout - Searching...";
+        
+        document.getElementById('status-bar').innerText = msg;
     }
 
     updateSystem() {
