@@ -14,6 +14,8 @@ body, html {
     background: var(--bg);
     color: white;
     overflow: hidden;
+    overscroll-behavior: none; /* Prevent pull-to-refresh */
+    touch-action: none; /* Prevent browser gestures */
 }
 
 #game-container {
@@ -93,15 +95,40 @@ body, html {
     border: 1px solid rgba(255,255,255,0.1);
 }
 
-/* Controls */
-#controls {
+/* Controls Panels */
+.controls-panel {
     position: absolute;
     bottom: 30px;
     width: 100%;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     gap: 10px;
     z-index: 1001;
+    pointer-events: none; /* Let clicks pass through empty space */
+}
+
+.controls-panel button {
+    pointer-events: auto;
+    width: 80%;
+    max-width: 300px;
+}
+
+.controls-panel.hidden {
+    display: none !important;
+}
+
+.panel-info {
+    background: rgba(0,0,0,0.8);
+    padding: 8px 20px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--primary);
+    text-transform: uppercase;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    pointer-events: auto;
 }
 
 button {

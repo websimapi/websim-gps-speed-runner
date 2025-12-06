@@ -41,17 +41,69 @@ class App {
     }
 
     initUI() {
-        document.getElementById('start-btn').addEventListener('click', () => {
-            document.getElementById('controls').style.display = 'none';
-            this.startGPS();
-            this.game.start();
+        // Menu
+        document.getElementById('btn-mode-gps').addEventListener('click', () => this.setMode('RECORDING'));
+        document.getElementById('btn-mode-draw').addEventListener('click', () => this.setMode('DRAWING'));
+        document.getElementById('btn-mode-sim').addEventListener('click', () => {
+            this.isSimulating = true;
+            this.setMode('RECORDING');
+            this.startSimulation();
         });
 
-        document.getElementById('sim-btn').addEventListener('click', () => {
-            document.getElementById('controls').style.display = 'none';
-            this.startSimulation();
-            this.game.start();
+        // Recording
+        document.getElementById('btn-stop-record').addEventListener('click', () => this.setMode('READY'));
+
+        // Drawing
+        document.getElementById('btn-undo-draw').addEventListener('click', () => this.mapManager.resetPath());
+        document.getElementById('btn-finish-draw').addEventListener('click', () => this.setMode('READY'));
+
+        // Race
+        document.getElementById('btn-start-race').addEventListener('click', () => this.setMode('RACING'));
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            this.game.stop();
+            this.mapManager.resetPath();
+            this.setMode('MENU');
         });
+        
+        // Start GPS initially for map context
+        this.startGPS();
+    }
+
+    setMode(mode) {
+        this.state.mode = mode;
+        
+        // Hide all panels
+        document.querySelectorAll('.controls-panel').forEach(el => el.classList.add('hidden'));
+
+        // Logic switch
+        if (mode === 'MENU') {
+            document.getElementById('main-menu').classList.remove('hidden');
+            this.mapManager.disableDrawing();
+        } 
+        else if (mode === 'RECORDING') {
+            document.getElementById('recording-controls').classList.remove('hidden');
+            this.mapManager.resetPath();
+        }
+        else if (mode === 'DRAWING') {
+            document.getElementById('drawing-controls').classList.remove('hidden');
+            this.mapManager.resetPath();
+            // Center map on last known pos
+            if (this.state.lat) this.mapManager.map.setView([this.state.lat, this.state.lng], 16);
+            
+            this.mapManager.enableDrawing(() => {
+                // Optional callback
+            });
+        }
+        else if (mode === 'READY') {
+            document.getElementById('race-controls').classList.remove('hidden');
+            this.mapManager.disableDrawing();
+        }
+        else if (mode === 'RACING') {
+            document.getElementById('status-bar').style.display = 'block';
+            
+            const trail = this.mapManager.getPath();
+            this.game.start(trail);
+        }
     }
 
     startGPS() {
@@ -104,8 +156,23 @@ class App {
         const kmh = (this.state.speed * 3.6).toFixed(1);
         document.getElementById('speed-val').innerText = kmh;
 
-        // Update Game Logic
-        this.game.update(this.state);
+        // Logic based on Mode
+        if (this.state.mode === 'RECORDING') {
+            // Add point if we moved
+            const path = this.mapManager.getPath();
+            const lastPoint = path.length > 0 ? path[path.length-1] : null;
+            
+            let dist = 999;
+            if (lastPoint) {
+                dist = this.mapManager.getDistance(lastPoint.lat, lastPoint.lng, this.state.lat, this.state.lng);
+            }
+
+            if (dist > 5) { // Record every 5 meters to smooth path
+                this.mapManager.pathLayer.addLatLng([this.state.lat, this.state.lng]);
+            }
+        } else if (this.state.mode === 'RACING') {
+             this.game.update(this.state);
+        }
     }
 
     // --- SIMULATION MODE ---

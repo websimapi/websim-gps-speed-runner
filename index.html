@@ -37,9 +37,27 @@
 
         <div id="status-bar">Tap START to begin</div>
 
-        <div id="controls">
-            <button id="start-btn">START RUN</button>
-            <button id="sim-btn" class="secondary">SIMULATE (WASD)</button>
+        <div id="main-menu" class="controls-panel">
+            <button id="btn-mode-gps">RECORD TRAIL (GPS)</button>
+            <button id="btn-mode-draw">DRAW TRAIL (TOUCH)</button>
+            <button id="btn-mode-sim" class="secondary">SIMULATE RECORDING</button>
+        </div>
+
+        <div id="recording-controls" class="controls-panel hidden">
+            <div class="panel-info">RECORDING TRAIL...</div>
+            <button id="btn-stop-record" style="background: var(--danger); color: white;">FINISH RECORDING</button>
+        </div>
+
+        <div id="drawing-controls" class="controls-panel hidden">
+            <div class="panel-info">DRAG TO DRAW TRAIL</div>
+            <button id="btn-undo-draw" class="secondary">CLEAR</button>
+            <button id="btn-finish-draw">FINISH DRAWING</button>
+        </div>
+
+        <div id="race-controls" class="controls-panel hidden">
+            <div class="panel-info">TRAIL READY</div>
+            <button id="btn-start-race">START RACE</button>
+            <button id="btn-reset" class="secondary">RESET / NEW TRAIL</button>
         </div>
     </div>
 
