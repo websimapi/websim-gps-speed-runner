@@ -1,0 +1,146 @@
+:root {
+    --primary: #00f2ff;
+    --danger: #ff0055;
+    --bg: #0a0a0a;
+    --glass: rgba(0, 0, 0, 0.7);
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: white;
+    overflow: hidden;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    background: #222; /* Fallback */
+}
+
+/* HUD Overlay */
+#hud {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.stat-box {
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 10px 20px;
+    border-radius: 12px;
+    text-align: center;
+    min-width: 80px;
+    transition: all 0.3s ease;
+}
+
+#rival-box.active {
+    border-color: var(--danger);
+    box-shadow: 0 0 15px var(--danger);
+    opacity: 1 !important;
+}
+
+.label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #aaa;
+}
+
+.value {
+    font-size: 28px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.unit {
+    font-size: 10px;
+    color: #888;
+}
+
+/* Status Bar */
+#status-bar {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--glass);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    z-index: 1000;
+    text-align: center;
+    white-space: nowrap;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Controls */
+#controls {
+    position: absolute;
+    bottom: 30px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    z-index: 1001;
+}
+
+button {
+    background: var(--primary);
+    color: black;
+    border: none;
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 30px;
+    cursor: pointer;
+    text-transform: uppercase;
+    box-shadow: 0 4px 15px rgba(0, 242, 255, 0.3);
+    transition: transform 0.1s;
+}
+
+button:active {
+    transform: scale(0.95);
+}
+
+button.secondary {
+    background: transparent;
+    border: 1px solid white;
+    color: white;
+    box-shadow: none;
+}
+
+button:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Animations */
+@keyframes pulse-red {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.active-rival {
+    animation: pulse-red 2s infinite;
+}

@@ -1,0 +1,151 @@
+import { MapManager } from './map.js';
+import { Game } from './game.js';
+
+class App {
+    constructor() {
+        this.mapManager = new MapManager();
+        this.game = new Game(this.mapManager);
+
+        this.state = {
+            lat: 0,
+            lng: 0,
+            speed: 0, // m/s
+            timestamp: 0
+        };
+
+        this.watchId = null;
+        this.isSimulating = false;
+
+        // Simulation variables
+        this.simLat = 40.7128;
+        this.simLng = -74.0060;
+        this.simSpeed = 0;
+        this.keys = {}
+
+        this.initUI();
+    }
+
+    initUI() {
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('controls').style.display = 'none';
+            this.startGPS();
+            this.game.start();
+        });
+
+        document.getElementById('sim-btn').addEventListener('click', () => {
+            document.getElementById('controls').style.display = 'none';
+            this.startSimulation();
+            this.game.start();
+        });
+    }
+
+    startGPS() {
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by this browser.");
+            return;
+        }
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        };
+
+        this.watchId = navigator.geolocation.watchPosition(
+            (pos) => this.handlePosition(pos),
+            (err) => this.handleError(err),
+            options
+        );
+    }
+
+    handlePosition(position) {
+        // Update State
+        this.state.lat = position.coords.latitude;
+        this.state.lng = position.coords.longitude;
+        // GPS speed can be null if stationary or depending on device. 
+        // We use it directly if available, otherwise calculate delta? 
+        // For this demo, trust device speed or default to 0.
+        this.state.speed = position.coords.speed !== null ? position.coords.speed : 0;
+        this.state.timestamp = position.timestamp;
+
+        this.updateSystem();
+    }
+
+    handleError(err) {
+        console.warn('GPS Error:', err.code, err.message);
+        document.getElementById('status-bar').innerText = "GPS Signal Lost...";
+    }
+
+    updateSystem() {
+        // Update Map
+        this.mapManager.updatePlayerPosition(this.state.lat, this.state.lng);
+
+        // Update UI
+        const kmh = (this.state.speed * 3.6).toFixed(1);
+        document.getElementById('speed-val').innerText = kmh;
+
+        // Update Game Logic
+        this.game.update(this.state);
+    }
+
+    // --- SIMULATION MODE ---
+    startSimulation() {
+        this.isSimulating = true;
+        this.state.lat = this.simLat;
+        this.state.lng = this.simLng;
+
+        document.getElementById('status-bar').innerText = "SIMULATION: Use WASD to run";
+
+        window.addEventListener('keydown', (e) => this.keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', (e) => this.keys[e.key.toLowerCase()] = false);
+
+        // Simulation Loop
+        setInterval(() => {
+            this.updateSimulation();
+        }, 100);
+    }
+
+    updateSimulation() {
+        // Simple physics for simulation
+        const speedInc = 0.5; // Acceleration
+        const friction = 0.9; // Deceleration
+        const maxSpeed = 10; // m/s (~36km/h)
+
+        let moveX = 0;
+        let moveY = 0;
+
+        if (this.keys['w']) moveY = 1;
+        if (this.keys['s']) moveY = -1;
+        if (this.keys['a']) moveX = -1;
+        if (this.keys['d']) moveX = 1;
+
+        if (moveX !== 0 || moveY !== 0) {
+            this.simSpeed += speedInc;
+            if (this.simSpeed > maxSpeed) this.simSpeed = maxSpeed;
+        } else {
+            this.simSpeed *= friction;
+            if (this.simSpeed < 0.1) this.simSpeed = 0;
+        }
+
+        // Move coord based on speed and direction
+        // 1 degree lat is approx 111km -> 111,000 meters
+        // 0.00001 deg is approx 1 meter
+        const meterDeg = 0.00001; 
+
+        // If moving
+        if (this.simSpeed > 0) {
+            // If pressing keys, update direction, else keep momentum? 
+            // For simplicity, just move North if W, etc.
+            // If no keys but speed > 0 (coasting), just stop for simplicity in this logic
+             if (moveX !== 0 || moveY !== 0) {
+                 this.state.lat += moveY * this.simSpeed * meterDeg * 0.1; // 0.1s interval
+                 this.state.lng += moveX * this.simSpeed * meterDeg * 0.1;
+             }
+        }
+
+        this.state.speed = this.simSpeed;
+        this.updateSystem();
+    }
+}
+
+new App();
