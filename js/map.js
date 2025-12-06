@@ -74,6 +74,7 @@ export class MapManager {
     }
 
     enableDrawing(onDrawCallback) {
+        // Disable navigation interactions to allow drawing on map surface
         this.map.dragging.disable();
         this.map.touchZoom.disable();
         this.map.doubleClickZoom.disable();
@@ -85,19 +86,34 @@ export class MapManager {
         const container = this.map.getContainer();
         container.style.cursor = 'crosshair';
 
-        // State for drawing
         this.isDrawing = false;
+
+        // Helper: Ensure we get a LatLng even from raw touch events
+        const getPoint = (e) => {
+            if (e.latlng) return e.latlng;
+            // Fallback for touches if Leaflet doesn't provide latlng directly
+            if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches[0]) {
+                const touch = e.originalEvent.touches[0];
+                const rect = container.getBoundingClientRect();
+                return this.map.containerPointToLatLng([
+                    touch.clientX - rect.left, 
+                    touch.clientY - rect.top
+                ]);
+            }
+            return null;
+        };
 
         this._drawStart = (e) => {
             this.isDrawing = true;
-            // Prevent map interaction/selection/scrolling
-            if (e.originalEvent) {
-                // e.originalEvent.preventDefault(); // Don't prevent start, otherwise clicks fail?
-                // Actually for touch, preventDefault on start stops mouse emulation but allows touchmove tracking often
+            
+            // Critical for mobile: prevent default on touchstart to stop browser from starting a scroll/zoom gesture
+            if (e.originalEvent && e.originalEvent.type === 'touchstart') {
+                e.originalEvent.preventDefault();
             }
             
-            if (e.latlng) {
-                this.pathLayer.addLatLng(e.latlng);
+            const latlng = getPoint(e);
+            if (latlng) {
+                this.pathLayer.addLatLng(latlng);
                 if (onDrawCallback) onDrawCallback();
             }
         };
@@ -105,14 +121,15 @@ export class MapManager {
         this._drawMove = (e) => {
             if (!this.isDrawing) return;
             
-            // Critical for mobile to prevent scroll interfering with drawing
+            // Prevent browser scrolling while dragging
             if (e.originalEvent) {
                 e.originalEvent.preventDefault();
                 e.originalEvent.stopPropagation();
             }
 
-            if (e.latlng) {
-                this.pathLayer.addLatLng(e.latlng);
+            const latlng = getPoint(e);
+            if (latlng) {
+                this.pathLayer.addLatLng(latlng);
                 if (onDrawCallback) onDrawCallback();
             }
         };
@@ -125,7 +142,6 @@ export class MapManager {
         this.map.on('mousemove touchmove', this._drawMove);
         this.map.on('mouseup touchend', this._drawEnd);
         
-        // Safety for leaving map area
         this.map.getContainer().addEventListener('mouseleave', this._drawEnd);
     }
 
